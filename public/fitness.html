@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Fitness | FocusBoard</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
+</head>
+<body class="accent-workout">
+  <script src="/app.js"></script>
+  <script>
+    requireAuth();
+
+    async function init() {
+      try {
+        await loadAppState();
+        const items = await api('/api/workouts', { headers: authHeaders() });
+        renderFitness(items);
+      } catch (err) {
+        console.error('Failed to load fitness data:', err);
+      }
+    }
+
+    function renderFitness(items) {
+      const { today } = APP_STATE;
+      const workoutGoal = today.goals.find(g => g.type === 'workout') || { completed: 0, target: 45 };
+      const percentage = Math.min(100, Math.round((workoutGoal.completed / workoutGoal.target) * 100));
+
+      shell('fitness.html', 'Fitness Training', 'Maintain physical peak for sustained execution focus.', `
+        <div class="grid grid-2">
+          <!-- Workout Form -->
+          <div class="card card-form">
+            <h3 style="margin-top:0; font-weight:900;">Log Workout</h3>
+            <div style="margin-bottom:24px">
+              <div class="goal-header">
+                <span>Daily Target</span>
+                <span>${workoutGoal.completed}/${workoutGoal.target}m</span>
+              </div>
+              <div class="goal-bar-bg">
+                <div class="goal-bar-fill" style="width: ${percentage}%"></div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Workout Name / Type</label>
+              <input id="day" placeholder="e.g. Push Day, Morning Run">
+            </div>
+            <div class="form-group">
+              <label>Duration (minutes)</label>
+              <input id="duration" type="number" value="45">
+            </div>
+            <div class="form-group">
+              <label>Date</label>
+              <input id="date" type="date" value="${new Date().toISOString().split('T')[0]}">
+            </div>
+            <div class="form-group">
+              <label>Notes</label>
+              <textarea id="notes" rows="3" placeholder="Volume, rest times, intensity..."></textarea>
+            </div>
+            <button class="btn btn-primary btn-auth" onclick="saveWorkout()">Save Session</button>
+          </div>
+
+          <!-- Workout Log -->
+          <div class="card">
+            <h3 style="margin:0 0 24px 0; font-weight:900;">Workout Log</h3>
+            <div class="list">
+              ${items.length ? items.map(i => `
+                <div class="item-card">
+                  <div style="flex-grow:1">
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px">
+                      <span class="duration-tag">${i.duration}m</span>
+                      <strong style="font-size:18px">${i.day}</strong>
+                    </div>
+                    <div class="muted" style="margin-bottom:8px">${i.date} · Intensive Session</div>
+                    ${i.notes ? `<p class="muted" style="margin:0; font-size:13px; line-height:1.4">${i.notes}</p>` : ''}
+                  </div>
+                  <button class="btn-delete" onclick="removeWorkout('${i._id}')">Remove</button>
+                </div>
+              `).join('') : '<div class="empty">No workouts logged yet. Get moving!</div>'}
+            </div>
+          </div>
+        </div>
+      `);
+    }
+
+    async function saveWorkout() {
+      const payload = {
+        day: qs('#day').value,
+        duration: parseInt(qs('#duration').value),
+        date: qs('#date').value,
+        notes: qs('#notes').value
+      };
+
+      try {
+        await api('/api/workouts', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify(payload)
+        });
+
+        // Sync with Daily Goals
+        const workoutGoal = APP_STATE.today.goals.find(g => g.type === 'workout');
+        await api(`/api/today/goals/workout`, {
+          method: 'PATCH',
+          headers: authHeaders(),
+          body: JSON.stringify({ completed: (workoutGoal?.completed || 0) + payload.duration })
+        });
+
+        toast('Workout Saved & Goals Updated!');
+        setTimeout(init, 500);
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
+    async function removeWorkout(id) {
+      if (!confirm('Permanent delete?')) return;
+      try {
+        await api('/api/workouts/' + id, { method: 'DELETE', headers: authHeaders() });
+        toast('Deleted');
+        setTimeout(init, 300);
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

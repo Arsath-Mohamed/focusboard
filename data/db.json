@@ -1,0 +1,26 @@
+{
+  "users": [
+    {
+      "id": "u_m9lz8ibq",
+      "name": "Test User",
+      "email": "test@example.com",
+      "passwordHash": "$2a$10$RBBPbCY6MCQM10PAlv6jJuZhotHILStc8k8g4J0Jtxvgrp9mKcMxe",
+      "plan": "free",
+      "theme": "cyan",
+      "headline": "Personal workspace for study, projects, and fitness tracking",
+      "focus": [
+        "Study",
+        "Projects",
+        "Fitness"
+      ],
+      "settings": {
+        "compactMode": false
+      },
+      "studySessions": [],
+      "workouts": [],
+      "projects": [],
+      "milestones": [],
+      "createdAt": "2026-03-18T08:57:16.967Z"
+    }
+  ]
+}

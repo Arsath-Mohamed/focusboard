@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0">
+  <title>Dashboard | FocusBoard P-1.1</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+  <script src="/app.js"></script>
+  <script>
+    requireAuth();
+
+    async function init() {
+      try {
+        await loadAppState();
+        renderDashboard();
+      } catch (err) {
+        console.error('Failed to load dashboard:', err);
+      }
+    }
+
+    function renderDashboard() {
+      const { user, stats, today, recentActivities } = APP_STATE;
+
+      shell('index.html', `Hello, ${user.name}!`, `Here's your execution progress for today.`, `
+        <div class="grid grid-2">
+          <!-- Hero Card -->
+          <div class="card hero-card">
+            <div class="streak-badge">🔥 ${user.streak} Day Streak</div>
+            <div class="badge">FOCUS MODE</div>
+            <h2 style="font-size:32px; margin: 16px 0 8px 0; font-weight:900;">Keep the momentum.</h2>
+            <p class="muted" style="margin-bottom:24px">${user.headline}</p>
+            <div class="actions">
+              <button class="btn btn-primary" onclick="location.href='/study.html'">Start Session</button>
+              <button class="btn btn-quick" onclick="quickLog('study', 30)">+30m Study</button>
+              <button class="btn btn-quick" onclick="quickLog('workout', 45)">+45m Workout</button>
+            </div>
+          </div>
+
+          <!-- Progress Rings -->
+          <div class="card">
+            <h3 style="margin-top:0; font-weight:900;">Daily Progress</h3>
+            <div class="progress-rings-wrapper">
+              <div>
+                <div id="ring-study" class="progress-ring accent-study"></div>
+                <div class="ring-label">Study</div>
+              </div>
+              <div>
+                <div id="ring-workout" class="progress-ring accent-workout"></div>
+                <div class="ring-label">Fitness</div>
+              </div>
+              <div>
+                <div id="ring-project" class="progress-ring accent-project"></div>
+                <div class="ring-label">Project</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-3" style="margin-top:24px">
+          <!-- Daily Goals -->
+          <div class="card grid-col-span-1">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
+              <h3 style="margin:0; font-weight:900;">Daily Targets</h3>
+              <span class="badge" style="background:rgba(var(--accent-rgb), 0.1)">${today.completionPercentage}%</span>
+            </div>
+            <div class="goal-list">
+              ${today.goals.map(g => `
+                <div class="goal-item accent-${g.type}">
+                  <div class="goal-header">
+                    <span>${g.type.toUpperCase()} <small class="muted" style="font-weight:400; margin-left:8px">${g.priority}</small></span>
+                    <span>${g.completed}/${g.target} min</span>
+                  </div>
+                  <div class="goal-bar-bg">
+                    <div class="goal-bar-fill" style="width: ${Math.min(100, Math.round((g.completed / g.target) * 100))}%"></div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Statistics -->
+          <div class="card">
+            <h3 style="margin:0 0 24px 0; font-weight:900;">Global Stats</h3>
+            <div style="display:grid; gap:20px">
+              <div>
+                <div class="muted" style="font-size:12px; text-transform:uppercase; font-weight:700">Total Study</div>
+                <div style="font-size:28px; font-weight:900; color:var(--accent-study)">${formatMinutes(stats.totalStudyMinutes)}</div>
+              </div>
+              <div>
+                <div class="muted" style="font-size:12px; text-transform:uppercase; font-weight:700">Workouts</div>
+                <div style="font-size:28px; font-weight:900; color:var(--accent-workout)">${stats.workouts} sessions</div>
+              </div>
+               <div>
+                <div class="muted" style="font-size:12px; text-transform:uppercase; font-weight:700">Projects</div>
+                <div style="font-size:28px; font-weight:900; color:var(--accent-project)">${stats.totalProjects} active</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="card">
+            <h3 style="margin:0 0 24px 0; font-weight:900;">Recent Sessions</h3>
+            <div class="activity-list">
+              ${recentActivities.length ? recentActivities.slice(0, 4).map(a => `
+                <div class="activity-item">
+                  <div>
+                    <div style="font-weight:700">${a.topic}</div>
+                    <div class="muted" style="font-size:12px">${a.date}</div>
+                  </div>
+                  <div style="font-weight:900; color:var(--accent-study)">+${a.minutes}m</div>
+                </div>
+              `).join('') : '<div class="empty">No recent activity</div>'}
+            </div>
+            ${recentActivities.length ? `<a href="/study.html" class="muted" style="display:block; text-align:center; margin-top:16px; font-size:13px; font-weight:600">View All</a>` : ''}
+          </div>
+        </div>
+      `);
+
+      // Animate progress rings
+      today.goals.forEach(g => renderProgressRing(qs(`#ring-${g.type}`), g.completed, g.target, g.type));
+    }
+
+    async function quickLog(type, minutes) {
+      try {
+        let endpoint = type === 'study' ? '/api/studySessions' : (type === 'workout' ? '/api/workouts' : '/api/projects');
+        let payload = type === 'study' ? 
+          { date: new Date().toISOString().split('T')[0], topic: 'Quick Session', minutes, problemsSolved: 0, notes: 'Quick log' } :
+          { date: new Date().toISOString().split('T')[0], day: 'Quick Workout', duration: minutes, notes: 'Quick log' };
+
+        await api(endpoint, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify(payload)
+        });
+
+        toast(`${type.charAt(0).toUpperCase() + type.slice(1)} logged!`);
+        
+        // Update goal progress too
+        await api(`/api/today/goals/${type}`, {
+          method: 'PATCH',
+          headers: authHeaders(),
+          body: JSON.stringify({ 
+            completed: (APP_STATE.today.goals.find(g => g.type === type)?.completed || 0) + minutes 
+          })
+        });
+
+        // Refresh State
+        await loadAppState();
+        renderDashboard();
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

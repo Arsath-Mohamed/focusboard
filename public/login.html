@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Sign In | FocusBoard</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    .auth-bg {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      position: relative;
+    }
+    .auth-card {
+      width: 100%;
+      max-width: 440px;
+      padding: 48px !important;
+      text-align: center;
+    }
+    .auth-logo { 
+      font-size: 32px; font-weight: 950; color: var(--accent); margin-bottom: 32px; display: block;
+    }
+    .field { text-align: left; margin-bottom: 24px; }
+    label { font-weight: 700; font-size: 14px; margin-bottom: 10px; display: block; color: var(--muted); }
+    input { 
+      background: rgba(255,255,255,0.03); border: 1px solid var(--line); 
+      padding: 16px 20px; border-radius: 18px; color: #fff; width: 100%; font-size: 16px;
+      transition: all 0.2s ease;
+    }
+    input:focus { border-color: var(--accent); background: rgba(255,255,255,0.05); outline: none; }
+    .btn-auth { width: 100%; padding: 18px; border-radius: 18px; font-size: 18px; margin-top: 12px; }
+    .auth-footer { margin-top: 32px; color: var(--muted); font-size: 15px; }
+    .auth-link { color: var(--accent); font-weight: 700; text-decoration: none; }
+  </style>
+</head>
+<body class="page-bg auth-bg">
+  <div class="aurora one"></div><div class="aurora two"></div>
+
+  <div class="card auth-card">
+    <a href="/" class="auth-logo">FocusBoard</a>
+    <h1 class="title" style="font-size:28px; margin-bottom:8px;">Welcome Back</h1>
+    <p class="muted" style="margin-bottom:40px;">Sign in to your execution space</p>
+    
+    <form id="loginForm">
+      <div class="field">
+        <label>Email Address</label>
+        <input id="email" type="email" placeholder="example@focus.com" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="password" type="password" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary btn-auth">Enter Workspace</button>
+    </form>
+
+    <div class="auth-footer">
+      No account? <a href="/register.html" class="auth-link">Create Account</a>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="/app.js"></script>
+  <script>
+    if (getToken()) location.href = '/dashboard.html';
+    
+    qs('#loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = qs('#email').value;
+      const password = qs('#password').value;
+      try {
+        const data = await api('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        setToken(data.token);
+        // APP_STATE is managed in app.js upon loadAppState call on dashboard.html
+        location.href = '/dashboard.html';
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+  </script>
+</body>
+</html>

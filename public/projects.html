@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Projects | FocusBoard</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
+</head>
+<body class="accent-project">
+  <script src="/app.js"></script>
+  <script>
+    requireAuth();
+
+    async function init() {
+      try {
+        await loadAppState();
+        const items = await api('/api/projects', { headers: authHeaders() });
+        renderProjects(items);
+      } catch (err) {
+        console.error('Failed to load projects:', err);
+      }
+    }
+
+    function getStatusClass(status) {
+      if (status === 'Planned') return 'status-planned';
+      if (status === 'Building') return 'status-building';
+      if (status === 'Done') return 'status-done';
+      return 'status-hold';
+    }
+
+    function renderProjects(items) {
+      const { today } = APP_STATE;
+      const projectGoal = today.goals.find(g => g.type === 'project') || { completed: 0, target: 60 };
+      const percentage = Math.min(100, Math.round((projectGoal.completed / projectGoal.target) * 100));
+
+      shell('projects.html', 'Project Hub', 'Build your future, one commit at a time.', `
+        <div class="grid grid-2">
+          <!-- Project Form -->
+          <div class="card card-form">
+            <h3 style="margin-top:0; font-weight:900;">Track Progress</h3>
+            <div style="margin-bottom:24px">
+              <div class="goal-header">
+                <span>Daily Execution Target</span>
+                <span>${projectGoal.completed}/${projectGoal.target}m</span>
+              </div>
+              <div class="goal-bar-bg">
+                <div class="goal-bar-fill" style="width: ${percentage}%"></div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Project Title</label>
+              <input id="title" placeholder="Project Name">
+            </div>
+            <div class="grid grid-2">
+              <div class="form-group">
+                <label>Status</label>
+                <select id="status">
+                  <option>Planned</option>
+                  <option>Building</option>
+                  <option>Done</option>
+                  <option>On Hold</option>
+                </select>
+              </div>
+               <div class="form-group">
+                <label>Log Minutes Worked</label>
+                <input id="logMinutes" type="number" value="30">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Tech Stack</label>
+              <input id="stack" placeholder="e.g. Next.js, FastAPI, PostgreSQL">
+            </div>
+            <div class="form-group">
+              <label>Live Link / Repo</label>
+              <input id="link" placeholder="https://github.com/...">
+            </div>
+            <div class="form-group">
+              <label>Internal Notes</label>
+              <textarea id="notes" rows="3" placeholder="Milestones, bugs, next steps..."></textarea>
+            </div>
+            <button class="btn btn-primary btn-auth" onclick="saveProject()">Update Board</button>
+          </div>
+
+          <!-- Project Board -->
+          <div class="card">
+            <h3 style="margin:0 0 24px 0; font-weight:900;">Active Board</h3>
+            <div class="list">
+              ${items.length ? items.map(i => `
+                <div class="item-card">
+                  <div style="flex-grow:1">
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px">
+                      <span class="status-pill ${getStatusClass(i.status)}">${i.status}</span>
+                      <strong style="font-size:20px">${i.title}</strong>
+                    </div>
+                    <div class="muted" style="margin-bottom:12px; font-weight:700; color:var(--accent-project)">${i.stack}</div>
+                    ${i.notes ? `<p class="muted" style="margin:0; font-size:14px; line-height:1.5">${i.notes}</p>` : ''}
+                    ${i.link ? `<a href="${i.link}" target="_blank" class="muted" style="display:inline-block; margin-top:12px; text-decoration:underline; font-size:13px">${i.link}</a>` : ''}
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:10px">
+                    <button class="btn-delete" onclick="removeProject('${i._id}')">Delete</button>
+                  </div>
+                </div>
+              `).join('') : '<div class="empty">The board is empty. Build something great!</div>'}
+            </div>
+          </div>
+        </div>
+      `);
+    }
+
+    async function saveProject() {
+      const title = qs('#title').value;
+      if (!title) return toast('Project title required');
+      
+      const payload = {
+        title: title,
+        status: qs('#status').value,
+        stack: qs('#stack').value,
+        link: qs('#link').value,
+        notes: qs('#notes').value
+      };
+      
+      const minutes = parseInt(qs('#logMinutes').value || 0);
+
+      try {
+        await api('/api/projects', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify(payload)
+        });
+
+        // Sync with Daily Goals if minutes entered
+        if (minutes > 0) {
+          const projectGoal = APP_STATE.today.goals.find(g => g.type === 'project');
+          await api(`/api/today/goals/project`, {
+            method: 'PATCH',
+            headers: authHeaders(),
+            body: JSON.stringify({ completed: (projectGoal?.completed || 0) + minutes })
+          });
+        }
+
+        toast('Project Board Updated!');
+        setTimeout(init, 500);
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
+    async function removeProject(id) {
+      if (!confirm('Permanent delete?')) return;
+      try {
+        await api('/api/projects/' + id, { method: 'DELETE', headers: authHeaders() });
+        toast('Deleted');
+        setTimeout(init, 300);
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

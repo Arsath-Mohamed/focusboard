@@ -1,0 +1,19 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Analytics</title><link rel="stylesheet" href="/styles.css"></head><body><script src="/app.js"></script><script>
+requireAuth();
+function bars(items, suffix='m'){ if(!items.length) return `<div class='empty'>No data yet</div>`; const max=Math.max(...items.map(x=>Number(x.value||0)),1); return `<div class='chart'>${items.map(i=>`<div class='bar' style='height:${Math.max(12,(i.value/max)*100)}%'><span>${i.value}${suffix}</span><label>${i.date.slice(5)}</label></div>`).join('')}</div>`; }
+(async()=>{
+  const data = await api('/api/analytics',{headers:authHeaders()});
+  shell('analytics.html','Analytics','Simple trend views for study, problems, and workouts.', `
+    <div class="grid grid-4">
+      <div class="card panel"><div class="muted">Study Sessions</div><div class="stat">${data.stats.studySessions}</div></div>
+      <div class="card panel"><div class="muted">Workouts</div><div class="stat">${data.stats.workouts}</div></div>
+      <div class="card panel"><div class="muted">Active Projects</div><div class="stat">${data.stats.activeProjects}</div></div>
+      <div class="card panel"><div class="muted">Milestones</div><div class="stat">${data.stats.milestones}</div></div>
+    </div>
+    <div class="grid grid-2" style="margin-top:18px">
+      <div class="card panel"><h3>Study minutes by date</h3>${bars(data.studyByDate)}</div>
+      <div class="card panel"><h3>Problems solved by date</h3>${bars(data.problemsByDate,'')}</div>
+    </div>
+    <div class="card panel" style="margin-top:18px"><h3>Workout minutes by date</h3>${bars(data.workoutsByDate)}</div>`);
+})();
+</script></body></html>

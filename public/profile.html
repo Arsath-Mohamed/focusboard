@@ -1,0 +1,31 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Profile</title><link rel="stylesheet" href="/styles.css"></head><body><script src="/app.js"></script><script>
+requireAuth();
+(async()=>{
+  const data = await api('/api/me',{headers:authHeaders()});
+  setUser(data.user); applyTheme(data.user.theme);
+  shell('profile.html','Profile','Edit your public-facing identity inside the product.', `
+    <div class="grid grid-2">
+      <div class="card panel">
+        <h3>Profile details</h3>
+        <div class="field"><label>Name</label><input id="name" value="${data.user.name}"></div>
+        <div class="field"><label>Headline</label><input id="headline" value="${data.user.headline || ''}"></div>
+        <div class="field"><label>Focus areas (comma separated)</label><input id="focus" value="${(data.user.focus||[]).join(', ')}"></div>
+        <button class="button primary" onclick="saveProfile()">Save profile</button>
+      </div>
+      <div class="card panel">
+        <h3>Overview</h3>
+        <div class="list">
+          <div class="item"><strong>${data.user.email}</strong><div class="muted">Email</div></div>
+          <div class="item"><strong>${formatMinutes(data.stats.totalStudyMinutes)}</strong><div class="muted">Total study time</div></div>
+          <div class="item"><strong>${formatMinutes(data.stats.totalWorkoutMinutes)}</strong><div class="muted">Total workout time</div></div>
+          <div class="item"><strong>${data.stats.totalProjects}</strong><div class="muted">Projects tracked</div></div>
+        </div>
+      </div>
+    </div>`);
+})();
+async function saveProfile(){
+  const focus = focus.value.split(',').map(v=>v.trim()).filter(Boolean);
+  const data = await api('/api/me',{method:'PUT',headers:authHeaders(),body:JSON.stringify({name:name.value,headline:headline.value,focus,theme:getUser().theme,compactMode:false})});
+  setUser(data.user); toast('Profile updated');
+}
+</script></body></html>

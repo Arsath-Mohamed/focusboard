@@ -1,0 +1,13 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Settings</title><link rel="stylesheet" href="/styles.css"></head><body><script src="/app.js"></script><script>
+requireAuth();
+(async()=>{
+  const data = await api('/api/me',{headers:authHeaders()});
+  setUser(data.user); applyTheme(data.user.theme);
+  shell('settings.html','Settings','Theme and export controls for your account.', `
+    <div class="grid grid-2">
+      <div class="card panel"><h3>Appearance</h3><div class="actions"><button onclick="setTheme('cyan')">Cyan</button><button onclick="setTheme('green')">Green</button><button onclick="setTheme('purple')">Purple</button><button onclick="setTheme('amber')">Amber</button></div></div>
+      <div class="card panel"><h3>Backup</h3><a class="button primary" href="/api/export" target="_blank">Download your data</a></div>
+    </div>`);
+})();
+async function setTheme(theme){ const current = getUser(); const data = await api('/api/me',{method:'PUT',headers:authHeaders(),body:JSON.stringify({name:current.name,headline:current.headline,focus:current.focus,theme,compactMode:false})}); setUser(data.user); applyTheme(theme); toast('Theme updated'); }
+</script></body></html>
